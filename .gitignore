@@ -1,0 +1,9 @@
+
+# Visual Studio cache directory
+.vs/
+
+[Bb]in/
+[Oo]bj/
+[Dd]ist/
+[Bb]ackup/
+*.csproj.user
