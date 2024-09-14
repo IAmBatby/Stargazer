@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
-namespace VisualMoonCatalogue
+namespace Stargazer
 {
     public class VisualMoonContainer : MonoBehaviour
     {

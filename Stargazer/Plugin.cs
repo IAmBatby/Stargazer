@@ -6,14 +6,14 @@ using System.IO;
 using System.Reflection;
 using UnityEngine;
 
-namespace VisualMoonCatalogue
+namespace Stargazer
 {
     [BepInPlugin(ModGUID, ModName, ModVersion)]
     [BepInDependency(LethalLevelLoader.Plugin.ModGUID)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string ModGUID = "visualmooncatalogue";
-        public const string ModName = "VisualMoonCatalogue";
+        public const string ModGUID = "IAmBatby.Stargazer";
+        public const string ModName = "Stargazer";
         public const string ModVersion = "1.0.0.0";
 
         public static Plugin Instance;
@@ -33,8 +33,8 @@ namespace VisualMoonCatalogue
             
             string sAssemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             DebugLog("Trying To Load AssetBundle At " + sAssemblyLocation);
-            DebugLog("FilePath Should Be: " + Path.Combine(sAssemblyLocation, "visualmooncatalogue"));
-            AssetBundle = AssetBundle.LoadFromFile(Path.Combine(sAssemblyLocation, "visualmooncatalogue"));
+            DebugLog("FilePath Should Be: " + Path.Combine(sAssemblyLocation, "stargazerbundle"));
+            AssetBundle = AssetBundle.LoadFromFile(Path.Combine(sAssemblyLocation, "stargazerbundle"));
             if (AssetBundle == null)
                 DebugLogError("Could Not Find AssetBundle!");
             else

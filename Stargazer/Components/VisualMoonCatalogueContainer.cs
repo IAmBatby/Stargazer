@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
-namespace VisualMoonCatalogue
+namespace Stargazer
 {
     public enum MoonBackgroundSetting { Transparent, Skybox }
     public class VisualMoonCatalogueContainer : MonoBehaviour

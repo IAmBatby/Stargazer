@@ -11,7 +11,7 @@ using UnityEngine.Rendering;
 using UnityEngine.TerrainUtils;
 using static Unity.Audio.Handle;
 
-namespace VisualMoonCatalogue
+namespace Stargazer
 {
     internal static class Patches
     {
@@ -27,7 +27,7 @@ namespace VisualMoonCatalogue
         [HarmonyPostfix]
         internal static void RoundManagerUpdate_Prefix()
         {
-            Plugin.DebugLog("Starting VisualMoonCatalogue!");
+            Plugin.DebugLog("Starting Stargazer!");
 
             if (TerminalManager.currentMoonsCataloguePage.ExtendedLevels.Count == 0)
                 Plugin.DebugLog("No Levels Found!");
@@ -224,12 +224,12 @@ namespace VisualMoonCatalogue
             visualMoonContainerObject.transform.position = new Vector3(galaxyOffset.x, visualMoonCatalogue.visualMoonCatalogueSpawnPosition.y + 15, galaxyOffset.y);
 
             Color color = new Color(21, 191, 0, 255);
-            if (visualMoonCatalogue.useTagColors == true && TagColorDictionary.TryGetTagColor(extendedLevel.levelTags.ToArray(), out Color tagColor))
+            if (visualMoonCatalogue.useTagColors == true && TagColorDictionary.TryGetTagColor(extendedLevel.ContentTagStrings.ToArray(), out Color tagColor))
                 color = tagColor;
 
             //Setup Moon
             Plugin.DebugLog("Instacing Prefab For: " + extendedLevel.NumberlessPlanetName);
-            GameObject newPlanetObject = GameObject.Instantiate(extendedLevel.selectableLevel.planetPrefab, visualMoonContainer.transform);
+            GameObject newPlanetObject = GameObject.Instantiate(extendedLevel.SelectableLevel.planetPrefab, visualMoonContainer.transform);
             visualMoonContainer.spawnedMoonObject = newPlanetObject;
             visualMoonContainer.currentExtendedLevel = extendedLevel;
             Animator planetAnimator = newPlanetObject.GetComponent<Animator>();
@@ -262,7 +262,7 @@ namespace VisualMoonCatalogue
             visualMoonContainer.spawnedMoonText.transform.Rotate(new Vector3(90, 0, 0));
             visualMoonContainer.spawnedMoonText.transform.position += new Vector3(visualMoonCatalogue.textOffsetX, 0, visualMoonCatalogue.textOffsetZ);
 
-            visualMoonContainer.spawnedMoonText.text = extendedLevel.selectableLevel.PlanetName;
+            visualMoonContainer.spawnedMoonText.text = extendedLevel.SelectableLevel.PlanetName;
             visualMoonContainer.spawnedMoonText.color = color;
             visualMoonContainer.spawnedMoonText.fontSize = visualMoonCatalogue.textFontSize;
 

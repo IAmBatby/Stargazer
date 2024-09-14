@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34316.72
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VisualMoonCatalogue", "VisualMoonCatalogue\VisualMoonCatalogue.csproj", "{5FF7B90C-5730-4749-B0F8-C428C1B226B0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Stargazer", "Stargazer\Stargazer.csproj", "{5FF7B90C-5730-4749-B0F8-C428C1B226B0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

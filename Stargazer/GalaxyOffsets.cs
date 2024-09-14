@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
-namespace VisualMoonCatalogue
+namespace Stargazer
 {
     public enum SolarSystemSize { Three, Four, Eight }
     public enum Anchor { TopLeft, TopCenter, TopRight, CenterLeft, Center, CenterRight, BottomLeft, BottomCenter, BottomRight }
