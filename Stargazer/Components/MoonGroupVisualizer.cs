@@ -5,9 +5,9 @@ using UnityEngine;
 
 namespace Stargazer
 {
-    public class VisualMoonGroupContainer : MonoBehaviour
+    public class MoonGroupVisualizer : MonoBehaviour
     {
         public LineRenderer lineRenderer;
-        public List<VisualMoonContainer> visualMoonContainersList = new List<VisualMoonContainer>();
+        public List<MoonVisualizer> visualMoonContainersList = new List<MoonVisualizer>();
     }
 }

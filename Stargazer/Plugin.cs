@@ -22,7 +22,7 @@ namespace Stargazer
 
         public static AssetBundle AssetBundle;
 
-        internal static BepInEx.Logging.ManualLogSource logger;
+        internal static ManualLogSource logger;
 
         private void Awake()
         {
@@ -30,33 +30,9 @@ namespace Stargazer
                 Instance = this;
 
             logger = Logger;
-            
-            string sAssemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            DebugLog("Trying To Load AssetBundle At " + sAssemblyLocation);
-            DebugLog("FilePath Should Be: " + Path.Combine(sAssemblyLocation, "stargazerbundle"));
-            AssetBundle = AssetBundle.LoadFromFile(Path.Combine(sAssemblyLocation, "stargazerbundle"));
-            if (AssetBundle == null)
-                DebugLogError("Could Not Find AssetBundle!");
-            else
-                DebugLog("AssetBundle Found!");
 
-            GameObject[] prefabs = AssetBundle.LoadAllAssets<GameObject>();
-            foreach (GameObject prefab in prefabs)
-            {
-                DebugLog("Found Prefab: " + prefab.name);
-                if (prefab.TryGetComponent(out VisualMoonCatalogueContainer visualMoonCatalogueContainer))
-                {
-                    DebugLog("Found VisualMoonCatalogueContainer Prefab!");
-                    Patches.visualMoonCatalogueContainerPrefab = prefab;
-                }
-            }
+            Assets.LoadBundle();
 
-            /*VisualMoonGroupContainer[] visualMoonGroupContainers = AssetBundle.LoadAllAssets<VisualMoonGroupContainer>();
-            if (visualMoonGroupContainers[0] != null)
-            {
-                Logger.LogDebug("Found VisualMoonGroupContainer Prefab!");
-                Patches.visualMoonCatalogueContainerPrefab = visualMoonGroupContainers[0].gameObject;
-            }*/
             Logger.LogMessage("Succesfully Loaded Visual Moon Catalogue!");
             
             Harmony.PatchAll(typeof(Patches));

@@ -6,22 +6,17 @@ using UnityEngine;
 namespace Stargazer
 {
     public enum MoonBackgroundSetting { Transparent, Skybox }
-    public class VisualMoonCatalogueContainer : MonoBehaviour
+    public class StarmapManager : MonoBehaviour
     {
         public GameObject plane;
         public Camera camera;
         public RenderTexture renderTexture;
-        public Material terminalGreen;
-        public Material terminalBlack;
-
-        public GameObject visualMoonGroupContainerPrefab;
-        public GameObject visualMoonContainerPrefab;
 
         public MoonBackgroundSetting backgroundSetting;
         public bool useTagColors = true;
 
-        public List<VisualMoonGroupContainer> visualMoonGroupContainersList = new List<VisualMoonGroupContainer>();
-        public List<VisualMoonContainer> visualMoonContainersList = new List<VisualMoonContainer>();
+        public List<MoonGroupVisualizer> visualMoonGroupContainersList = new List<MoonGroupVisualizer>();
+        public List<MoonVisualizer> visualMoonContainersList = new List<MoonVisualizer>();
 
 
         public Vector3 visualMoonCatalogueSpawnPosition = new Vector3(0, 150, 0);
@@ -36,15 +31,12 @@ namespace Stargazer
 
         public void Update()
         {
-            if (Patches.terminal.currentNode == Patches.moonsCatalogueNode)
-            {
-                    
-            }
+
         }
 
         public void UpdateVisualMoons()
         {
-            foreach (VisualMoonContainer moonContainer in visualMoonContainersList)
+            foreach (MoonVisualizer moonContainer in visualMoonContainersList)
             {
                 moonContainer.spawnedMoonText.transform.position = moonContainer.spawnedMoonObject.transform.position;
                 moonContainer.spawnedMoonText.transform.position += new Vector3(textOffsetX, 0, textOffsetZ);

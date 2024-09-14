@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Stargazer
 {
-    public class VisualMoonContainer : MonoBehaviour
+    public class MoonVisualizer : MonoBehaviour
     {
         public GameObject spawnedMoonObject;
         public TextMesh spawnedMoonText;
