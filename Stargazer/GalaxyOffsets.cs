@@ -12,6 +12,7 @@ namespace Stargazer
         public static SolarSystemSize currentSolarSystemSize;
 
         public static float distance = 140;
+
         public static Dictionary<Anchor, Vector2> anchorDictionary = new Dictionary<Anchor, Vector2>()
         {
             {Anchor.TopLeft, new Vector2(-distance,distance) },

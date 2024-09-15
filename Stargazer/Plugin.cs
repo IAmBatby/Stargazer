@@ -34,8 +34,9 @@ namespace Stargazer
             Assets.LoadBundle();
 
             Logger.LogMessage("Succesfully Loaded Visual Moon Catalogue!");
-            
-            Harmony.PatchAll(typeof(Patches));
+
+            //Harmony.PatchAll(typeof(Patches));
+            Harmony.PatchAll(typeof(NewPatches));
         }
 
         public static void DebugLog(string log)
