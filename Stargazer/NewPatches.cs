@@ -22,113 +22,75 @@ namespace Stargazer
         [HarmonyPostfix]
         internal static void RoundManagerStart_Postfix()
         {
-            Plugin.DebugLog("Starting Stargazer!");
+            if (hasStarted == true) return;
 
             if (TerminalManager.currentMoonsCataloguePage.ExtendedLevels.Count == 0)
                 Plugin.DebugLog("No Levels Found!");
+            else
+                Plugin.DebugLog("Starting Stargazer!");
 
-            if (hasStarted == true) return;
 
             Terminal = Object.FindFirstObjectByType<Terminal>();
             MoonsCatalogueNode = Terminal.terminalNodes.allKeywords[21].specialKeywordResult;
-            InitializeUI();
+            ActiveStarmapManager = GameObject.Instantiate(Assets.Manifest.StarmapUIManagerPrefab, Terminal.terminalImageMask.transform).GetComponent<StarmapUIManager>();
             hasStarted = true;
         }
-
-        internal static void InitializeUI()
-        {
-            Transform terminalParent = Terminal.terminalImageMask.transform;
-            GameObject starmapManagerObject = GameObject.Instantiate(Assets.Manifest.StarmapUIManagerPrefab, terminalParent);
-            ActiveStarmapManager = starmapManagerObject.GetComponent<StarmapUIManager>();
-            ActiveStarmapManager.maskImage.fillAmount = 0;
-        }
-
 
         [HarmonyPatch(typeof(Terminal), nameof(Terminal.TextPostProcess))]
         [HarmonyPostfix]
         internal static void TerminalTextPostProcess_Postfix(TerminalNode node, ref string __result)
         {
-            if (node == MoonsCatalogueNode)
+            if (node == MoonsCatalogueNode && ActiveStarmapManager.UIActive == false)
+                ActiveStarmapManager.ToggleUI(true);
+            else if (node == MoonsCatalogueNode && ActiveStarmapManager == true)
             {
-                ActiveStarmapManager.TryToggleUI(true);
-                ActiveStarmapManager.SelectMoonGroup(null);
-                ActiveStarmapManager.SelectMoon(null);
-                __result = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
+                ActiveStarmapManager.SetActiveMoon(null);
+                ActiveStarmapManager.SetActiveMoonGroup(null);
             }
-            else if (ActiveStarmapManager.routeToGroupDict.TryGetValue(node, out MoonGroupUIVisualizer groupVisualizer))
+            else if (ActiveStarmapManager.RouteMoonDictionary.TryGetValue(node, out MoonUIVisualizer moon))
             {
-                //Plugin.DebugLog("Switching Active Moon To: " + ActiveStarmapManager.routeToMoonDict[node].controllingLevel.NumberlessPlanetName);
-                ActiveStarmapManager.SelectMoon(ActiveStarmapManager.routeToMoonDict[node]);
-                ActiveStarmapManager.SelectMoonGroup(groupVisualizer);
-                __result = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
-
+                if (moon.CurrentLevel.IsRouteLocked == false && moon.CurrentLevel.IsRouteHidden == true)
+                {
+                    HUDManager.Instance.DisplayTip("New Route Discovered", moon.CurrentLevel.SelectableLevel.PlanetName, false, false);
+                    moon.CurrentLevel.IsRouteHidden = false;
+                    moon.RefreshVisualInfo();
+                }
+                ActiveStarmapManager.SetActiveMoon(ActiveStarmapManager.RouteMoonDictionary[node]);
             }
             else
-                ActiveStarmapManager.TryToggleUI(false);
+                ActiveStarmapManager.ToggleUI(false);
 
+            if (ActiveStarmapManager.UIActive == true)
+                __result = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
         }
 
         [HarmonyPatch(typeof(Terminal), nameof(Terminal.BeginUsingTerminal))]
         [HarmonyPrefix]
         internal static void TerminalBeginUsingTerminal_Prefix()
         {
-            ActiveStarmapManager.TryToggleUI(false);
-            ActiveStarmapManager.Reset();
+            ActiveStarmapManager.ToggleUI(false);
         }
 
-        [HarmonyPatch(typeof(Terminal), nameof(Terminal.QuitTerminal))]
-        [HarmonyPostfix]
-        internal static void TerminalQuitTerminal_Postfix()
-        {
-            ActiveStarmapManager.TryToggleUI(false);
-            ActiveStarmapManager.borderMask.fillAmount = 0;
-        }
-
-        internal static TerminalNode fixNode = null;
         [HarmonyPatch(typeof(Terminal), nameof(Terminal.OnSubmit))]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
+        [HarmonyPrefix, HarmonyPriority(Priority.First)]
         internal static void TerminalOnSubmit_Prefix(Terminal __instance)
         {
             TerminalNode currentNode = __instance.currentNode;
 
-            if (currentNode != null && currentNode.overrideOptions == true && ActiveStarmapManager.routeToGroupDict.ContainsKey(currentNode))
+            if (currentNode != null && currentNode.overrideOptions == true && ActiveStarmapManager.RouteGroupDictionary.ContainsKey(currentNode))
             {
                 currentNode.overrideOptions = false;
-                TerminalNode parsedNode = __instance.ParsePlayerSentence();
-                if (parsedNode != null)
-                    if (parsedNode == MoonsCatalogueNode || ActiveStarmapManager.routeToGroupDict.ContainsKey(parsedNode))
-                        __instance.currentNode = MoonsCatalogueNode;
+                if (IsRelevantNode(__instance.ParsePlayerSentence()))
+                    __instance.currentNode = MoonsCatalogueNode;
                 currentNode.overrideOptions = true;
             }
         }
-        /*
-        [HarmonyPatch(typeof(Terminal), nameof(Terminal.OnSubmit))]
-        [HarmonyPostfix]
-        [HarmonyPriority(Priority.First)]
-        internal static void TerminalOnSubmit_Postfix(Terminal __instance)
+
+        internal static bool IsRelevantNode(TerminalNode node)
         {
-            if (fixNode != null)
-            {
-                fixNode.acceptAnything = false;
-                fixNode = null;
-            }
-        }*/
-
-
-    }
-
-    public struct NodeEdit
-    {
-        public TerminalNode node;
-        public bool acceptAnything;
-        public bool overrideOptions;
-
-        public NodeEdit(TerminalNode newNode, bool newAccept, bool newOverride)
-        {
-            node = newNode;
-            acceptAnything = newAccept;
-            overrideOptions = newOverride;
+            if (node != null && (node == MoonsCatalogueNode || ActiveStarmapManager.RouteGroupDictionary.ContainsKey(node)))
+                return (true);
+            return (false);
         }
     }
 }

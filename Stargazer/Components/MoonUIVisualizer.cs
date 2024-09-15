@@ -11,18 +11,18 @@ namespace Stargazer.Components
     public class MoonUIVisualizer : MonoBehaviour
     {
         public ExtendedLevel CurrentLevel { get; private set; }
+        public MoonGroupUIVisualizer CurrentMoonGroup { get; private set; }
         public VisualizerState CurrentState { get; private set; }
         public MoonTargetLerpInfo CurrentLerpInfo { get; private set; }
 
         public Color DefaultColor { get; private set; }
         public Color ActiveColor { get; private set; }
 
-        [SerializeField] private float colorLerpValue = 0.1f;
-        [SerializeField] private Image moonImage;
+        [SerializeField] private float colorLerpValue = 0.025f;
+        [SerializeField] internal Image moonImage;
         [SerializeField] private TextMeshProUGUI moonTitle;
         [SerializeField] private List<Image> miscMoonImages = new List<Image>();
-        [SerializeField] private RectTransform rectTransform;
-
+        [SerializeField] internal RectTransform rectTransform;
 
         private void Awake()
         {
@@ -33,6 +33,39 @@ namespace Stargazer.Components
         private void Update()
         {
             ApplyColor(Color.Lerp(ActiveColor, CurrentLerpInfo.targetColor, 1 - Mathf.Pow(CurrentLerpInfo.lerpTime, Time.deltaTime)));
+        }
+
+        public void Initialize(ExtendedLevel newControllingLevel, MoonGroupUIVisualizer newMoonGroup)
+        {
+            enabled = true;
+            CurrentLevel = newControllingLevel;
+            CurrentMoonGroup = newMoonGroup;
+
+            RefreshVisualInfo();
+
+            SetVisualizerState(VisualizerState.Default, true);
+        }
+
+        public void RefreshVisualInfo()
+        {
+            DefaultColor = Color.white;
+            if (!CurrentLevel.NumberlessPlanetName.Contains("Gordion") && CurrentLevel.IsRouteHidden == true)
+            {
+                DefaultColor = Color.gray;
+                moonTitle.SetText("##. ?????");
+            }
+            else
+            {
+                foreach (ContentTag contentTag in CurrentLevel.ContentTags)
+                    if (StarmapUIManager.StarmapTags.TryGetValue(contentTag.TagName, out Color tagColor))
+                    {
+                        DefaultColor = tagColor;
+                        break;
+                    }
+
+                moonTitle.SetText(CurrentLevel.SelectableLevel.PlanetName);
+            }
+
         }
 
         private MoonTargetLerpInfo GetTargetLerpInfo()
@@ -47,43 +80,13 @@ namespace Stargazer.Components
             return (newInfo);
         }
 
-        public void Initialize(ExtendedLevel newControllingLevel)
-        {
-            enabled = true;
-            CurrentLevel = newControllingLevel;
-
-            if (CurrentLevel.IsRouteHidden == true)
-            {
-                DefaultColor = Color.black;
-                moonTitle.SetText("##. ?????");
-            }
-            else
-            {
-                foreach (ContentTag contentTag in CurrentLevel.ContentTags)
-                    if (StarmapUIManager.starmapTags.TryGetValue(contentTag.TagName, out Color tagColor))
-                    {
-                        DefaultColor = tagColor;
-                        break;
-                    }
-
-                moonTitle.SetText(CurrentLevel.SelectableLevel.PlanetName);
-            }
-
-            ApplyColor(DefaultColor);
-            CurrentState = VisualizerState.Default;
-            CurrentLerpInfo = GetTargetLerpInfo();
-        }
-
-        public void SetVisualizerState(VisualizerState newVisualizerState)
+        public void SetVisualizerState(VisualizerState newVisualizerState, bool applyOnSet = false)
         {
             CurrentState = newVisualizerState;
             CurrentLerpInfo = GetTargetLerpInfo();
-        }
 
-        public void Reset()
-        {
-            SetVisualizerState(VisualizerState.Default);
-            ApplyColor(CurrentLerpInfo.targetColor);
+            if (applyOnSet == true)
+                ApplyColor(CurrentLerpInfo.targetColor);
         }
 
         private void ApplyColor(Color color)

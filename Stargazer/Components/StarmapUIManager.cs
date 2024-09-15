@@ -1,130 +1,168 @@
-﻿using ES3Internal;
-using LethalLevelLoader;
+﻿using LethalLevelLoader;
 using Stargazer.Components;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
-using static UnityEngine.GraphicsBuffer;
-using UnityEngine.UIElements.Experimental;
-using static UnityEngine.Rendering.HighDefinition.ScalableSettingLevelParameter;
 
 namespace Stargazer
 {
     public enum VisualizerState { Default, Inactive, Active }
     public class StarmapUIManager : MonoBehaviour
     {
-        public Image borderMask;
-        public Image maskImage;
-        public Image backgroundImage;
+        public static StarmapUIManager Instance;
+        [Header("Serialized References")]
+        [SerializeField] private Image borderMask;
+        [SerializeField] private Image maskImage;
+        [SerializeField] private Image backgroundImage;
 
-        public List<MoonGroupUIVisualizer> allMoonGroupVisualizers = new List<MoonGroupUIVisualizer>();
-        public List<MoonUIVisualizer> allMoonVisualizers;
+        [SerializeField] private MoonDataVisualiser moonDataVisualiser;
 
-        internal static Dictionary<string, Color> starmapTags;
+        ///// Interal References /////
 
-        //public List<MoonGroupUIVisualizer> allMoonGroupVisualizers = new List<MoonGroupUIVisualizer>();
+        internal Dictionary<TerminalNode, MoonGroupUIVisualizer> RouteGroupDictionary { get; private set; } = new Dictionary<TerminalNode, MoonGroupUIVisualizer>();
+        internal Dictionary<TerminalNode, MoonUIVisualizer> RouteMoonDictionary { get; private set; } = new Dictionary<TerminalNode, MoonUIVisualizer>();
 
-        public Dictionary<Anchor, RectTransform> UIAnchorDictionary = new Dictionary<Anchor, RectTransform>();
+        internal List<TerminalNode> MoonNodes { get; private set; } = new List<TerminalNode>();
 
-        public static List<Vector2> randomGroupPositions = new List<Vector2>();
-
-        internal bool UIActive;
-
-        internal MoonGroupUIVisualizer activeGroupVisualizer;
-
-        internal MoonUIVisualizer activeMoonVisualizer;
-
-        internal List<TerminalNode> moonNodes = new List<TerminalNode>();
-
-        internal Dictionary<TerminalNode, MoonGroupUIVisualizer> routeToGroupDict = new Dictionary<TerminalNode, MoonGroupUIVisualizer>();
-        internal Dictionary<TerminalNode, MoonUIVisualizer> routeToMoonDict = new Dictionary<TerminalNode, MoonUIVisualizer>();
-        internal float lerpTime = 0.1f;
+        internal static Dictionary<string, Color> StarmapTags { get; private set; }
 
         internal static Color InactiveColor { get; private set; } = new Color(1f, 1f, 1f, 0.1f);
 
-        internal static float defaultTime = 0.05f;
-        internal static float activeTime = 0.05f;
-        internal float inactiveTime = 0.005f;
+        internal bool UIActive { get; private set; }
+        internal bool HasInitialized { get; private set; }
+
+        internal MoonGroupUIVisualizer ActiveGroup
+        {
+            get
+            {
+                MoonGroupUIVisualizer value = null;
+                foreach (MoonGroupUIVisualizer moonGroup in allMoonGroupVisualizers)
+                    if (moonGroup.CurrentState == VisualizerState.Active)
+                        value = moonGroup;
+                return (value);
+            }
+        }
+        internal MoonUIVisualizer ActiveMoon
+        {
+            get
+            {
+                MoonUIVisualizer value = null;
+                foreach (MoonUIVisualizer moon in allMoonVisualizers)
+                    if (moon.CurrentState == VisualizerState.Active)
+                        value = moon;
+                return (value);
+            }
+        }
+
+        ///// Private References /////
+
+        [SerializeField] private List<MoonGroupUIVisualizer> allMoonGroupVisualizers = new List<MoonGroupUIVisualizer>();
+        private List<MoonUIVisualizer> allMoonVisualizers;
+        private float uiScrollLerpTime = 0.1f;
+        private List<Vector2> randomGroupPositions = new List<Vector2>();
 
         private void Awake()
         {
-            DisableUI();
+            Instance = this;
+            enabled = true;
+            //moonDataVisualiser.gameObject.SetActive(false);
             borderMask.fillAmount = 0;
+            maskImage.fillAmount = 0;
+            ToggleUI(false);
             InitializeInfo();
             InitializeMoonGroups();
         }
 
         private void InitializeInfo()
         {
-            UIAnchorDictionary = new Dictionary<Anchor, RectTransform>()
-            {
-                {Anchor.TopLeft, allMoonGroupVisualizers[0].RectTransform },
-                {Anchor.TopCenter, allMoonGroupVisualizers[1].RectTransform },
-                {Anchor.TopRight, allMoonGroupVisualizers[2].RectTransform },
-                {Anchor.CenterLeft, allMoonGroupVisualizers[3].RectTransform },
-                {Anchor.Center, allMoonGroupVisualizers[4].RectTransform },
-                {Anchor.CenterRight, allMoonGroupVisualizers[5].RectTransform },
-                {Anchor.BottomLeft, allMoonGroupVisualizers[6].RectTransform },
-                {Anchor.BottomCenter, allMoonGroupVisualizers[7].RectTransform },
-                {Anchor.BottomRight, allMoonGroupVisualizers[8].RectTransform }
-            };
-
             float xMax = 35;
             float yMax = 35;
             randomGroupPositions = new List<Vector2>()
             {
-                new (-xMax,-yMax),
-                new (-xMax,yMax),
-                new (0,0),
-                new (xMax,-yMax),
-                new (xMax,yMax),
+                new (-xMax,-yMax), new (-xMax,yMax), new (0,0), new (xMax,-yMax), new (xMax,yMax),
             };
 
             foreach (ExtendedLevel extendedLevel in PatchedContent.ExtendedLevels)
-                moonNodes.Add(extendedLevel.RouteNode);
+                MoonNodes.Add(extendedLevel.RouteNode);
+
+            StarmapTags = Assets.Manifest.colorManifest.CreateDictionary();
         }
 
         private void InitializeMoonGroups()
         {
             ExtendedLevelGroup[] extendedLevelGroups = GetMoonGroups();
-
             allMoonVisualizers = new List<MoonUIVisualizer>();
-
-            starmapTags = Assets.Manifest.colorManifest.CreateDictionary();
 
             for (int i = 0; i < extendedLevelGroups.Length; i++)
             {
                 if (extendedLevelGroups[i] == null) continue;
+                //if (allMoonGroupVisualizers[i] == null) continue;
+
+                MoonGroupUIVisualizer moonGroup = allMoonGroupVisualizers[i];
+                moonGroup.RectTransform = moonGroup.GetComponent<RectTransform>();
                 Dictionary<ExtendedLevel, Vector2> randomOffsets = GetRandomOffsets(extendedLevelGroups[i].extendedLevelsList);
 
-                MoonUIVisualizer previousLevel = null;
-                foreach (ExtendedLevel extendedLevel in extendedLevelGroups[i].extendedLevelsList)
+                if (extendedLevelGroups[i].extendedLevelsList.Count > 1)
+                    for (int j = 0; j < extendedLevelGroups[i].extendedLevelsList.Count; j++)
+                        InitializeMoonLine(moonGroup);
+
+                for (int j = 0; j < extendedLevelGroups[i].extendedLevelsList.Count; j++)
                 {
-                    MoonUIVisualizer moonUIVisualizer = GameObject.Instantiate(Assets.Manifest.MoonUIVisualizerPrefab, allMoonGroupVisualizers[i].RectTransform).GetComponent<MoonUIVisualizer>();
-                    moonUIVisualizer.transform.Rotate(0, 180, 0);
-                    moonUIVisualizer.Initialize(extendedLevel);
+                    ExtendedLevel extendedLevel = extendedLevelGroups[i].extendedLevelsList[j];
 
-                    if (extendedLevelGroups[i].extendedLevelsList.Count > 1)
-                        OffsetMoon(allMoonGroupVisualizers[i].RectTransform, moonUIVisualizer, randomOffsets[extendedLevel]);
+                    MoonUIVisualizer moon = InitializeMoonVisualizer(moonGroup, extendedLevel, extendedLevelGroups[i].extendedLevelsList.Count, randomOffsets[extendedLevel]);
 
-                    if (previousLevel != null)
+                    if (j > 0 && extendedLevelGroups[i].extendedLevelsList.Count > 1)
+                        moonGroup.allMoonLines[j].Apply(moonGroup.allMoonVisualizers[j], moonGroup.allMoonVisualizers[j - 1]);
+
+                    if (extendedLevel.RouteNode != null)
                     {
-                        MoonLine moonLine = GameObject.Instantiate(Assets.Manifest.MoonLine, allMoonGroupVisualizers[i].RectTransform).GetComponent<MoonLine>();
-                        moonLine.Apply(previousLevel, moonUIVisualizer);
-                        allMoonGroupVisualizers[i].allMoonLines.Add(moonLine);
+                        RouteGroupDictionary.Add(extendedLevel.RouteNode, moonGroup);
+                        RouteMoonDictionary.Add(extendedLevel.RouteNode, moon);
                     }
 
-                    routeToGroupDict.Add(extendedLevel.RouteNode, allMoonGroupVisualizers[i]);
-                    routeToMoonDict.Add(extendedLevel.RouteNode, moonUIVisualizer);
-
-                    previousLevel = moonUIVisualizer;
-                    allMoonGroupVisualizers[i].allMoonVisualizers.Add(moonUIVisualizer);
-                    allMoonVisualizers.Add(moonUIVisualizer);
+                    allMoonVisualizers.Add(moon);
                 }
+                if (extendedLevelGroups[i].extendedLevelsList.Count > 1)
+                    moonGroup.allMoonLines[0].Apply(moonGroup.allMoonVisualizers.First(), moonGroup.allMoonVisualizers.Last());
             }
+
+            string debugString = "Finished Initializing Stargazer, Results Below: " + "\n\n";
+
+            foreach (MoonGroupUIVisualizer moonGroup in  allMoonGroupVisualizers)
+            {
+                debugString += allMoonGroupVisualizers.IndexOf(moonGroup) + " : ";
+
+                foreach (MoonUIVisualizer moon in moonGroup.allMoonVisualizers)
+                    debugString += moon.CurrentLevel.NumberlessPlanetName + ", ";
+
+                debugString += "\n";
+            }
+
+            Plugin.DebugLog(debugString);
+            HasInitialized = true;
+        }
+
+        private MoonUIVisualizer InitializeMoonVisualizer(MoonGroupUIVisualizer moonGroup, ExtendedLevel extendedLevel, int groupCount, Vector2 offset)
+        {
+            MoonUIVisualizer moonUIVisualizer = GameObject.Instantiate(Assets.Manifest.MoonUIVisualizerPrefab, moonGroup.RectTransform).GetComponent<MoonUIVisualizer>();
+            moonUIVisualizer.transform.Rotate(0, 180, 0);
+            moonUIVisualizer.Initialize(extendedLevel, moonGroup);
+            moonUIVisualizer.gameObject.name = "MoonUIVisualizer (" + moonUIVisualizer.CurrentLevel.NumberlessPlanetName + ")";
+
+            if (groupCount > 1)
+                OffsetMoon(moonGroup.RectTransform, moonUIVisualizer, offset);
+
+            moonGroup.allMoonVisualizers.Add(moonUIVisualizer);
+
+            return (moonUIVisualizer);
+        }
+
+        private void InitializeMoonLine(MoonGroupUIVisualizer moonGroup)
+        {
+            MoonLine moonLine = GameObject.Instantiate(Assets.Manifest.MoonLine, moonGroup.RectTransform).GetComponent<MoonLine>();
+            moonGroup.allMoonLines.Add(moonLine);
         }
 
         private Dictionary<ExtendedLevel, Vector2> GetRandomOffsets(List<ExtendedLevel> extendedLevels)
@@ -156,21 +194,37 @@ namespace Stargazer
         internal ExtendedLevelGroup[] GetMoonGroups()
         {
             ExtendedLevelGroup[] returnGroups = new ExtendedLevelGroup[9];
-            List<ExtendedLevelGroup> extendedLevelGroups = new List<ExtendedLevelGroup>(TerminalManager.defaultMoonsCataloguePage.ExtendedLevelGroups);
+            List<ExtendedLevelGroup> extendedLevelGroups = new List<ExtendedLevelGroup>(TerminalManager.currentMoonsCataloguePage.ExtendedLevelGroups);
             ExtendedLevelGroup gordionGroup = new ExtendedLevelGroup(new List<ExtendedLevel>() { PatchedContent.ExtendedLevels[3] });
 
-            int index = 0;
-  
-            for (int i = 0; i < extendedLevelGroups.Count; i++)
+            List<ExtendedLevelGroup> allExtendedLevelGroups = new List<ExtendedLevelGroup>();
+            List<ExtendedLevel> allLevels = new List<ExtendedLevel>();
+
+            foreach (ExtendedLevelGroup currentGroup in TerminalManager.defaultMoonsCataloguePage.ExtendedLevelGroups.Concat(TerminalManager.currentMoonsCataloguePage.ExtendedLevelGroups))
             {
-                if (index == returnGroups.Length) break;
-                if (index != 4)
-                    returnGroups[i] = extendedLevelGroups[i];
-                else
-                    index++;
-                index++;
+                bool uniqueGroup = false;
+                foreach (ExtendedLevel level in currentGroup.extendedLevelsList)
+                    if (!allLevels.Contains(level))
+                    {
+                        uniqueGroup = true;
+                        break;
+                    }
+                if (uniqueGroup == true)
+                {
+                    allExtendedLevelGroups.Add(currentGroup);
+                    foreach (ExtendedLevel level in currentGroup.extendedLevelsList)
+                        allLevels.Add(level);
+                }
             }
-            returnGroups[4] = gordionGroup;
+
+            allExtendedLevelGroups.Insert(4, gordionGroup);
+
+            for (int i = 0; i < allExtendedLevelGroups.Count; i++)
+            {
+                if (i == returnGroups.Length) break;
+                returnGroups[i] = allExtendedLevelGroups[i];
+            }
+            //returnGroups[4] = gordionGroup;
 
             for (int i = 0; i < returnGroups.Length; i++)
                 if (i != 4 && returnGroups[i] != null)
@@ -181,151 +235,69 @@ namespace Stargazer
             return (returnGroups);
         }
 
-        internal void TryToggleUI(bool value)
+        internal void ToggleUI(bool value)
         {
-            if (value == true && UIActive == false)
-                EnableUI();
-            else if (value == false && UIActive == true)
-                DisableUI();
-        }
+            bool oldValue = UIActive;
+            UIActive = value;
 
-        private void EnableUI()
-        {
-            UIActive = true;
-        }
+            if (UIActive == true && oldValue == false)
+                if (HasInitialized)
+                    ResetVisualizers();
 
-        private void DisableUI()
-        {
-            UIActive = false;
-        }
-
-        internal void SelectMoon(MoonUIVisualizer visualizer)
-        {
-            if (visualizer == null)
-                foreach (MoonUIVisualizer moon in allMoonVisualizers)
-                    moon.SetVisualizerState(VisualizerState.Default);
-            else
+            if (UIActive == false && oldValue == true)
             {
-                foreach (MoonUIVisualizer moon in allMoonVisualizers)
-                    moon.SetVisualizerState(VisualizerState.Inactive);
-
-                activeMoonVisualizer = visualizer;
-                activeMoonVisualizer.SetVisualizerState(VisualizerState.Active);
+                borderMask.fillAmount = 0;
+                maskImage.fillAmount = 0;
             }
         }
 
-        internal void SelectMoonGroup(MoonGroupUIVisualizer moonVisualizer)
+        internal void SetActiveMoon(MoonUIVisualizer newMoon)
         {
-            if (moonVisualizer == null)
-                foreach (MoonGroupUIVisualizer moonGroup in allMoonGroupVisualizers)
-                    moonGroup.SetVisualizerState(VisualizerState.Default);
+            if (newMoon == null)
+                ToggleAllMoonStates(VisualizerState.Default, false);
             else
             {
-                foreach (MoonGroupUIVisualizer moonGroup in allMoonGroupVisualizers)
-                    moonGroup.SetVisualizerState(VisualizerState.Inactive);
-
-                activeGroupVisualizer = moonVisualizer;
-                activeGroupVisualizer.SetVisualizerState(VisualizerState.Active);
+                ToggleAllMoonStates(VisualizerState.Inactive, false);
+                newMoon.SetVisualizerState(VisualizerState.Active, false);
+                SetActiveMoonGroup(newMoon.CurrentMoonGroup);
             }
         }
 
-        internal void Reset()
+        internal void SetActiveMoonGroup(MoonGroupUIVisualizer newMoonGroup)
         {
-            activeGroupVisualizer = null;
-            activeMoonVisualizer = null;
+            if (newMoonGroup == null)
+                ToggleAllMoonGroupStates(VisualizerState.Default, false);
+            else
+            {
+                ToggleAllMoonGroupStates(VisualizerState.Inactive, false);
+                newMoonGroup.SetVisualizerState(VisualizerState.Active, false);
+            }
+        }
 
+        internal void ResetVisualizers()
+        {
+            ToggleAllMoonGroupStates(VisualizerState.Default, true);
+            ToggleAllMoonStates(VisualizerState.Default, true);
+        }
+
+        private void ToggleAllMoonGroupStates(VisualizerState newState, bool applyOnSet)
+        {
             foreach (MoonGroupUIVisualizer moonGroup in allMoonGroupVisualizers)
-                moonGroup.Reset();
+                moonGroup.SetVisualizerState(newState, applyOnSet);
+        }
+
+        private void ToggleAllMoonStates(VisualizerState newState, bool applyOnSet)
+        {
             foreach (MoonUIVisualizer moon in allMoonVisualizers)
-                moon.Reset();
+                moon.SetVisualizerState(newState, applyOnSet);
         }
 
         private void Update()
         {
             if (UIActive == true && borderMask.fillAmount < 1f)
-                borderMask.fillAmount = Mathf.Lerp(borderMask.fillAmount, 1f, 1 - Mathf.Pow(lerpTime, Time.deltaTime));
+                borderMask.fillAmount = Mathf.Lerp(borderMask.fillAmount, 1f, 1 - Mathf.Pow(uiScrollLerpTime, Time.deltaTime));
             else if (UIActive == false && borderMask.fillAmount > 0f)
-                borderMask.fillAmount = Mathf.Lerp(borderMask.fillAmount, 0f, 1 - Mathf.Pow(lerpTime, Time.deltaTime));
-
-            foreach (MoonGroupUIVisualizer moonGroup in allMoonGroupVisualizers)
-            {
-                if (moonGroup == activeGroupVisualizer)
-                    LerpMoonGroupToActive(moonGroup);
-                else if (activeGroupVisualizer != null)
-                    LerpMoonGroupToInactive(moonGroup);
-                else
-                    LerpMoonGroupToDefaults(moonGroup);
-            }
-
-            foreach (MoonUIVisualizer moon in allMoonVisualizers)
-            {
-                if (moon == activeMoonVisualizer)
-                    LerpMoonToActive(moon);
-                else if (activeMoonVisualizer != null)
-                    LerpMoonToInactive(moon);
-                else
-                    LerpMoonToDefaults(moon);
-            }
+                borderMask.fillAmount = Mathf.Lerp(borderMask.fillAmount, 0f, 1 - Mathf.Pow(uiScrollLerpTime, Time.deltaTime));
         }
-
-        internal void ResetMoonGroupUI(MoonGroupUIVisualizer moonGroup)
-        {
-            moonGroup.RectTransform.offsetMin = moonGroup.defaultOffsetMin;
-            moonGroup.RectTransform.offsetMax = moonGroup.defaultOffsetMax;
-            moonGroup.RectTransform.anchorMin = moonGroup.defaultAnchorMin;
-            moonGroup.RectTransform.localPosition = moonGroup.defaultLocalPosition;
-            moonGroup.RectTransform.localScale = Vector3.one;
-
-            foreach (MoonUIVisualizer moonUIVisualizer in moonGroup.allMoonVisualizers)
-                moonUIVisualizer.ApplyDefaultColor();
-        }
-
-        private void LerpMoonGroupToDefaults(MoonGroupUIVisualizer moonGroup)
-        {
-            RectTransform rect = moonGroup.RectTransform;
-
-            rect.offsetMin = Lerp(rect.offsetMin, moonGroup.defaultOffsetMin, defaultTime);
-            rect.offsetMax = Lerp(rect.offsetMax, moonGroup.defaultOffsetMax, defaultTime);
-
-            rect.localPosition = Lerp(rect.localPosition, moonGroup.defaultLocalPosition, defaultTime);
-            rect.localScale = Lerp(rect.localScale, Vector3.one, defaultTime);
-        }
-
-        private void LerpMoonGroupToActive(MoonGroupUIVisualizer moonGroup)
-        {
-            RectTransform rect = moonGroup.RectTransform;
-
-            rect.offsetMin = Lerp(rect.offsetMin, Vector2.zero, activeTime);
-            rect.offsetMax = Lerp(rect.offsetMax, Vector2.zero, activeTime);
-
-            rect.localPosition = Lerp(rect.localPosition, Vector3.zero, activeTime);
-            rect.localScale = Lerp(rect.localScale, new Vector3(1.85f,1.85f,1f), activeTime);
-        }
-
-        private void LerpMoonGroupToInactive(MoonGroupUIVisualizer moonGroup)
-        {
-            moonGroup.RectTransform.localScale = Lerp(moonGroup.RectTransform.localScale, Vector3.zero, inactiveTime);
-        }
-
-        private void LerpMoonToDefaults(MoonUIVisualizer moonVisualizer)
-        {
-            moonVisualizer.ApplyColor(Color.Lerp(moonVisualizer.ActiveColor, moonVisualizer.DefaultColor, activeTime / 2));
-        }
-
-        private void LerpMoonToActive(MoonUIVisualizer moonVisualizer)
-        {
-            moonVisualizer.ApplyColor(Color.Lerp(moonVisualizer.ActiveColor, moonVisualizer.DefaultColor, activeTime / 2));
-        }
-
-        private void LerpMoonToInactive(MoonUIVisualizer moonVisualizer)
-        {
-            moonVisualizer.ApplyColor(Color.Lerp(moonVisualizer.ActiveColor, InactiveColor, inactiveTime / 2));
-        }
-
-        internal static float Lerp(float current, float target, float t) => (Mathf.Lerp(current, target, 1 - Mathf.Pow(t, Time.deltaTime)));
-
-        internal static Vector2 Lerp(Vector2 current, Vector2 target, float t) => new Vector2(Lerp(current.x, target.x, t), Lerp(current.y, target.y, t));
-
-        internal static Vector3 Lerp(Vector3 current, Vector3 target, float t) => new Vector3(Lerp(current.x, target.x, t), Lerp(current.y, target.y, t), Lerp(current.z, target.z, t));
     }
 }

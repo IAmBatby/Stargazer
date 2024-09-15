@@ -9,7 +9,7 @@ namespace Stargazer
 {
     public class MoonGroupUIVisualizer : MonoBehaviour
     {
-        public RectTransform RectTransform { get; private set; }
+        public RectTransform RectTransform { get; set; }
 
         public VisualizerState CurrentState { get; private set; }
 
@@ -18,8 +18,13 @@ namespace Stargazer
         private Vector2 defaultOffsetMin;
         private Vector2 defaultOffsetMax;
         private Vector3 defaultLocalPosition;
-        private List<MoonUIVisualizer> allMoonVisualizers = new List<MoonUIVisualizer>();
-        private List<MoonLine> allMoonLines = new List<MoonLine>();
+        public List<MoonUIVisualizer> allMoonVisualizers = new List<MoonUIVisualizer>();
+        public List<MoonLine> allMoonLines = new List<MoonLine>();
+
+        private Vector2 targetOffsetMin = new Vector2(0, 0);
+        private Vector2 targetOffsetMax = new Vector2(-375, 225);
+        //private Vector2 targetOffsetMin = new Vector2(0, 0);
+        //private Vector2 targetOffsetMax = new Vector2(0, 0);
 
         private float defaultTime = 0.05f;
         private float activeTime = 0.05f;
@@ -33,6 +38,14 @@ namespace Stargazer
             defaultLocalPosition = RectTransform.localPosition;
             CurrentState = VisualizerState.Default;
             CurrentLerpInfo = GetTargetLerpInfo();
+        }
+
+        internal void ReorderChildren()
+        {
+            foreach (MoonLine moonLine in allMoonLines)
+                moonLine.rectTransform.SetParent(RectTransform);
+            foreach (MoonUIVisualizer visualizer in allMoonVisualizers)
+                visualizer.rectTransform.SetParent(RectTransform);
         }
 
         private void Update()
@@ -49,26 +62,27 @@ namespace Stargazer
             if (CurrentState == VisualizerState.Default)
                 newInfo = new(defaultOffsetMin, defaultOffsetMax, defaultLocalPosition, Vector3.one, defaultTime);
             else if (CurrentState == VisualizerState.Active)
-                newInfo = new(Vector2.zero, Vector2.zero, Vector3.zero, new Vector3(1.85f, 1.85f, 1f), activeTime);
+                newInfo = new(targetOffsetMin, targetOffsetMax, Vector3.zero, new Vector3(1.7f, 1.7f, 1f), activeTime);
             else if (CurrentState == VisualizerState.Inactive)
                 newInfo = new(defaultOffsetMin, defaultOffsetMax, defaultLocalPosition, Vector3.zero, inactiveTime);
             return (newInfo);
         }
 
-        public void SetVisualizerState(VisualizerState newState)
+        public void SetVisualizerState(VisualizerState newState, bool applyOnSet = false)
         {
             CurrentState = newState;
             CurrentLerpInfo = GetTargetLerpInfo();
-        }
 
-        public void Reset()
-        {
-            SetVisualizerState(VisualizerState.Default);
+            foreach (MoonLine moonLine in allMoonLines)
+                moonLine.RefreshLine();
 
-            RectTransform.offsetMin = CurrentLerpInfo.targetOffsetMin;
-            RectTransform.offsetMax = CurrentLerpInfo.targetOffsetMax;
-            RectTransform.localPosition = CurrentLerpInfo.targetLocalPosition;
-            RectTransform.localScale = CurrentLerpInfo.targetLocalScale;
+            if (applyOnSet == true)
+            {
+                RectTransform.offsetMin = CurrentLerpInfo.targetOffsetMin;
+                RectTransform.offsetMax = CurrentLerpInfo.targetOffsetMax;
+                RectTransform.localPosition = CurrentLerpInfo.targetLocalPosition;
+                RectTransform.localScale = CurrentLerpInfo.targetLocalScale;
+            }
         }
     }
 
