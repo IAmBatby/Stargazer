@@ -114,6 +114,7 @@ namespace Stargazer
         [HarmonyPostfix, HarmonyPriority(Priority.First)]
         internal static void TerminalParseWordOverrideOptions_Prefix(string playerWord, CompatibleNoun[] options, ref TerminalNode __result)
         {
+            /*
             if (ActiveStarmapManager.ActiveMoon == null) return;
             return;
             if (IdentifyNode(Terminal.currentNode) != NodeType.Irrelevant || IdentifyNode(Terminal.currentNode) != NodeType.Catalogue)
@@ -136,7 +137,7 @@ namespace Stargazer
                 else
                     debugString += "(Null) \n";
             }
-            Plugin.DebugLog(debugString);
+            Plugin.DebugLog(debugString);*/
         }
 
         [HarmonyPatch(typeof(Terminal), nameof(Terminal.ParsePlayerSentence))]
