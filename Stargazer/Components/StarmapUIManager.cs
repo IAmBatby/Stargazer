@@ -24,10 +24,15 @@ namespace Stargazer
         internal Dictionary<TerminalNode, MoonUIVisualizer> RouteMoonDictionary { get; private set; } = new Dictionary<TerminalNode, MoonUIVisualizer>();
 
         internal List<TerminalNode> MoonNodes { get; private set; } = new List<TerminalNode>();
+        internal Dictionary<TerminalNode, ExtendedLevel> SimulateNodeDict = new Dictionary<TerminalNode, ExtendedLevel>();
+
+        internal Dictionary<TerminalNode, NodeType> NodeTypeDict = new Dictionary<TerminalNode, NodeType>();
 
         internal static Dictionary<string, Color> StarmapTags { get; private set; }
 
         internal static Color InactiveColor { get; private set; } = new Color(1f, 1f, 1f, 0.1f);
+
+        internal List<ExtendedLevelGroup> extendedLevelGroups = new List<ExtendedLevelGroup>();
 
         internal bool UIActive { get; private set; }
         internal bool HasInitialized { get; private set; }
@@ -57,10 +62,14 @@ namespace Stargazer
 
         ///// Private References /////
 
+        [SerializeField] private List<StarmapLayout> allLayouts = new List<StarmapLayout>();
+        
         [SerializeField] private List<MoonGroupUIVisualizer> allMoonGroupVisualizers = new List<MoonGroupUIVisualizer>();
-        private List<MoonUIVisualizer> allMoonVisualizers;
+        private List<MoonUIVisualizer> allMoonVisualizers = new List<MoonUIVisualizer>();
         private float uiScrollLerpTime = 0.1f;
         private List<Vector2> randomGroupPositions = new List<Vector2>();
+
+        [SerializeField] private DynamicGridLayout dynamicGridLayout;
 
         private void Awake()
         {
@@ -71,7 +80,20 @@ namespace Stargazer
             maskImage.fillAmount = 0;
             ToggleUI(false);
             InitializeInfo();
+            PopulateLevelGroups();
             InitializeMoonGroups();
+            InitializeMoons();
+
+            NodeTypeDict.Add(NewPatches.MoonsCatalogueNode, NodeType.Catalogue);
+            HasInitialized = true;
+        }
+
+        public void SetNewInfo(string newTitle = null, string newDescription = null)
+        {
+            if (!string.IsNullOrEmpty(newTitle))
+                moonDataVisualiser.titleText.SetText(newTitle);
+            if (!string.IsNullOrEmpty(newDescription))
+                moonDataVisualiser.descriptionText.SetText(newDescription);
         }
 
         private void InitializeInfo()
@@ -91,10 +113,26 @@ namespace Stargazer
 
         private void InitializeMoonGroups()
         {
-            ExtendedLevelGroup[] extendedLevelGroups = GetMoonGroups();
+            List<MoonGroupUIVisualizer> newMoonGroups = new List<MoonGroupUIVisualizer>();
+            foreach (ExtendedLevelGroup extendedLevelGroup in extendedLevelGroups)
+            {
+                MoonGroupUIVisualizer moonGroup = GameObject.Instantiate(Assets.Manifest.MoonGroupUIVisualizerPrefab, dynamicGridLayout.transform).GetComponent<MoonGroupUIVisualizer>();
+                newMoonGroups.Add(moonGroup);
+            }
+
+            allMoonGroupVisualizers = new List<MoonGroupUIVisualizer>(newMoonGroups);
+
+            int squareValue = Mathf.RoundToInt(Mathf.Sqrt(extendedLevelGroups.Count));
+            if (extendedLevelGroups.Count > squareValue)
+                squareValue = Mathf.RoundToInt(Mathf.Sqrt(extendedLevelGroups.Count + squareValue));
+            dynamicGridLayout.RefreshDynamicGridLayout(squareValue);
+        }
+
+        private void InitializeMoons()
+        {
             allMoonVisualizers = new List<MoonUIVisualizer>();
 
-            for (int i = 0; i < extendedLevelGroups.Length; i++)
+            for (int i = 0; i < extendedLevelGroups.Count; i++)
             {
                 if (extendedLevelGroups[i] == null) continue;
                 //if (allMoonGroupVisualizers[i] == null) continue;
@@ -120,12 +158,26 @@ namespace Stargazer
                     {
                         RouteGroupDictionary.Add(extendedLevel.RouteNode, moonGroup);
                         RouteMoonDictionary.Add(extendedLevel.RouteNode, moon);
+                        SimulateNodeDict.Add(extendedLevel.SimulateNode, extendedLevel);
                     }
 
                     allMoonVisualizers.Add(moon);
                 }
                 if (extendedLevelGroups[i].extendedLevelsList.Count > 1)
                     moonGroup.allMoonLines[0].Apply(moonGroup.allMoonVisualizers.First(), moonGroup.allMoonVisualizers.Last());
+            }
+
+            foreach (ExtendedLevel extendedLevel in PatchedContent.ExtendedLevels)
+            {
+                if (extendedLevel.RouteNode == null || extendedLevel.InfoNode == null || extendedLevel.SimulateNode == null)
+                {
+                    Plugin.DebugLogError(extendedLevel.NumberlessPlanetName + " Has Invalid Nodes!");
+                    continue;
+                }
+                NodeTypeDict.Add(extendedLevel.RouteNode, NodeType.Route);
+                NodeTypeDict.Add(extendedLevel.RouteConfirmNode, NodeType.RouteConfirm);
+                NodeTypeDict.Add(extendedLevel.InfoNode, NodeType.Info);
+                NodeTypeDict.Add(extendedLevel.SimulateNode, NodeType.Simulate);
             }
 
             string debugString = "Finished Initializing Stargazer, Results Below: " + "\n\n";
@@ -141,7 +193,6 @@ namespace Stargazer
             }
 
             Plugin.DebugLog(debugString);
-            HasInitialized = true;
         }
 
         private MoonUIVisualizer InitializeMoonVisualizer(MoonGroupUIVisualizer moonGroup, ExtendedLevel extendedLevel, int groupCount, Vector2 offset)
@@ -191,10 +242,9 @@ namespace Stargazer
             rect.anchoredPosition = Vector2.Lerp(rect.anchoredPosition, offset, 0.75f);
         }
 
-        internal ExtendedLevelGroup[] GetMoonGroups()
+        internal void PopulateLevelGroups()
         {
-            ExtendedLevelGroup[] returnGroups = new ExtendedLevelGroup[9];
-            List<ExtendedLevelGroup> extendedLevelGroups = new List<ExtendedLevelGroup>(TerminalManager.currentMoonsCataloguePage.ExtendedLevelGroups);
+            List<ExtendedLevelGroup> returnGroups = new List<ExtendedLevelGroup>();
             ExtendedLevelGroup gordionGroup = new ExtendedLevelGroup(new List<ExtendedLevel>() { PatchedContent.ExtendedLevels[3] });
 
             List<ExtendedLevelGroup> allExtendedLevelGroups = new List<ExtendedLevelGroup>();
@@ -217,22 +267,15 @@ namespace Stargazer
                 }
             }
 
+            for (int i = 0; i < allExtendedLevelGroups.Count; i++)
+                if (i != 4 && allExtendedLevelGroups[i] != null)
+                    foreach (ExtendedLevel level in new List<ExtendedLevel>(allExtendedLevelGroups[i].extendedLevelsList))
+                        if (level.NumberlessPlanetName.Contains("Gordion") || level.NumberlessPlanetName.Contains("Liquidation"))
+                            allExtendedLevelGroups[i].extendedLevelsList.Remove(level);
+
             allExtendedLevelGroups.Insert(4, gordionGroup);
 
-            for (int i = 0; i < allExtendedLevelGroups.Count; i++)
-            {
-                if (i == returnGroups.Length) break;
-                returnGroups[i] = allExtendedLevelGroups[i];
-            }
-            //returnGroups[4] = gordionGroup;
-
-            for (int i = 0; i < returnGroups.Length; i++)
-                if (i != 4 && returnGroups[i] != null)
-                    foreach (ExtendedLevel level in new List<ExtendedLevel>(returnGroups[i].extendedLevelsList))
-                        if (level.NumberlessPlanetName.Contains("Gordion") || level.NumberlessPlanetName.Contains("Liquidation"))
-                            returnGroups[i].extendedLevelsList.Remove(level);
-
-            return (returnGroups);
+            extendedLevelGroups = new List<ExtendedLevelGroup>(allExtendedLevelGroups);
         }
 
         internal void ToggleUI(bool value)
@@ -276,6 +319,7 @@ namespace Stargazer
 
         internal void ResetVisualizers()
         {
+            dynamicGridLayout.RefreshLayout();
             ToggleAllMoonGroupStates(VisualizerState.Default, true);
             ToggleAllMoonStates(VisualizerState.Default, true);
         }

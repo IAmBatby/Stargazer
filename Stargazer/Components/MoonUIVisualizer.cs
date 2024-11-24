@@ -23,6 +23,7 @@ namespace Stargazer.Components
         [SerializeField] private TextMeshProUGUI moonTitle;
         [SerializeField] private List<Image> miscMoonImages = new List<Image>();
         [SerializeField] internal RectTransform rectTransform;
+        [SerializeField] internal Image weatherImage;
 
         private void Awake()
         {
@@ -65,7 +66,13 @@ namespace Stargazer.Components
 
                 moonTitle.SetText(CurrentLevel.SelectableLevel.PlanetName);
             }
+            RefreshWeatherIcon();
 
+        }
+
+        public void RefreshWeatherIcon()
+        {
+            Assets.Manifest.SetWeatherSprite(weatherImage, CurrentLevel.SelectableLevel.currentWeather);
         }
 
         private MoonTargetLerpInfo GetTargetLerpInfo()

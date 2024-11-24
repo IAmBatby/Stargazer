@@ -41,7 +41,6 @@ namespace Stargazer
             hasStarted = true;
         }
 
-
         [HarmonyPatch(typeof(Terminal), "TextPostProcess")]
         [HarmonyPostfix]
         internal static void TerminalTextPostProcess_Postfix(TerminalNode node, ref string __result)
